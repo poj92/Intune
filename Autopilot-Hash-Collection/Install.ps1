@@ -70,32 +70,50 @@ if (Test-Path $markerPath) {
 $lines = Get-Content -Path $localCsv -Encoding UTF8
 if ($lines.Count -lt 2) { throw "CSV did not contain a data row" }
 
+$header = $lines[0].Trim()
 $row = $lines[1].Trim()
 
 # Add tracking columns
 $timestamp = (Get-Date).ToString("o")
 $computer  = $env:COMPUTERNAME
 
-$prefix = '"' + $timestamp.Replace('"','""') + '","' + $computer.Replace('"','""') + '",'
-$finalRow = $prefix + $row.TrimStart()
-$payload  = ($finalRow + "`n")
-
 # Blob URIs
 $baseUri   = "https://$storageAccount.blob.core.windows.net/$container/$blobName$sas"
 $appendUri = $baseUri + "&comp=appendblock"
 
-# Create Append Blob if missing
+# Check if blob exists
+$blobExists = $false
 try {
+    $response = Invoke-WebRequest -Uri $baseUri -Method Head -Headers @{
+        "x-ms-version" = "2020-10-02"
+    } -UseBasicParsing
+    $blobExists = $true
+} catch {
+    # Blob doesn't exist
+    $blobExists = $false
+}
+
+# If blob doesn't exist, create it with header
+if (-not $blobExists) {
+    # Create Append Blob
     Invoke-RestMethod -Uri $baseUri -Method Put -Headers @{
         "x-ms-blob-type" = "AppendBlob"
         "x-ms-version"   = "2020-10-02"
     } | Out-Null
-} catch {
-    # 409 = already exists (fine)
-    if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -ne 409) { throw }
+    
+    # Write header row with tracking columns
+    $headerWithTracking = '"UploadTimestamp","ComputerName",' + $header + "`n"
+    Invoke-RestMethod -Uri $appendUri -Method Put -Body ([System.Text.Encoding]::UTF8.GetBytes($headerWithTracking)) -Headers @{
+        "x-ms-version" = "2020-10-02"
+    } -ContentType "text/plain" | Out-Null
 }
 
-# Append row
+# Build data row with tracking columns
+$prefix = '"' + $timestamp.Replace('"','""') + '","' + $computer.Replace('"','""') + '",'
+$finalRow = $prefix + $row.TrimStart()
+$payload  = ($finalRow + "`n")
+
+# Append data row
 Invoke-RestMethod -Uri $appendUri -Method Put -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -Headers @{
     "x-ms-version" = "2020-10-02"
 } -ContentType "text/plain" | Out-Null
