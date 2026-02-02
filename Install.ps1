@@ -38,10 +38,15 @@ if (-not (Test-Path $localCsv)) { throw "Autopilot CSV not created at $localCsv"
 $obj = Import-Csv -Path $localCsv | Select-Object -First 1
 if (-not $obj) { throw "Autopilot CSV contained no rows" }
 
-$serial =
-    $obj.'Device Serial Number' ??
-    $obj.'Serial Number' ??
-    $obj.SerialNumber
+# Try multiple possible column names (PowerShell 5.1 compatible)
+$serial = $null
+if ($obj.'Device Serial Number') {
+    $serial = $obj.'Device Serial Number'
+} elseif ($obj.'Serial Number') {
+    $serial = $obj.'Serial Number'
+} elseif ($obj.SerialNumber) {
+    $serial = $obj.SerialNumber
+}
 
 if (-not $serial -or [string]::IsNullOrWhiteSpace($serial)) {
     # Fallback to BIOS serial if CSV headers differ
