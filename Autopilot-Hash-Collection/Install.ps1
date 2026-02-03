@@ -2,19 +2,34 @@
 # Runs as SYSTEM via Intune Win32 app
 # Bundled script: $PSScriptRoot\Get-WindowsAutopilotInfo.ps1
 <#
-.Tested-With:
-    - SAS: sv=2024-11-04&ss=bfqt&srt=sco&sp=rwdlacupiytfx&se=2026-02-28T18:56:20Z&st=2026-02-02T10:41:20Z&spr=https&sig=vYQr3Ao%2B11KaijlEW51VhxbN27y5v83bEU1px%2BIcB6U%3D
-    - Storage account: testingstract
-    - Container: hash
+.SYNOPSIS
+    Collects Windows Autopilot device hash and uploads to Azure Blob Storage.
+.DESCRIPTION
+    This script generates the Windows Autopilot device hash CSV using the bundled
+    Get-WindowsAutopilotInfo.ps1 script, then uploads the data to an Azure Blob Storage
+    Append Blob. It tracks uploads per-device using a local marker file to avoid duplicate
+    uploads for the same device.
+.PARAMETER storageAccount
+    The name of the Azure Storage Account (without .blob.core.windows.net).
+.PARAMETER container
+    The name of the Blob Container to upload to.
+.PARAMETER blobName
+    The name of the Append Blob to upload data to.
+.PARAMETER sas
+    The SAS token for accessing the Blob Storage (including leading '?').
+.NOTES
+    Author: Peter Opeyemi James
+    Date:   2026-02-02
+    Version:1.0
 #>
 
 $ErrorActionPreference = "Stop"
 
 # ====== Settings (EDIT THESE) ======
-$storageAccount = "testingstract"
-$container      = "hash"
+$storageAccount = "<YOUR_STORAGE_ACCOUNT_NAME>"
+$container      = "<YOUR_CONTAINER_NAME>"
 $blobName       = "autopilot/all-devices.csv"
-$sas            = "?sv=2024-11-04&ss=bfqt&srt=sco&sp=rwdlacupiytfx&se=2026-02-28T18:56:20Z&st=2026-02-02T10:41:20Z&spr=https&sig=vYQr3Ao%2B11KaijlEW51VhxbN27y5v83bEU1px%2BIcB6U%3D"
+$sas            = "<YOUR_SAS_TOKEN_HERE>"  # e.g. "?sv=2024-11-04&ss=bfqt&srt=sco&sp=rwdlacupiytfx&se=2026-02-28T18:56:20Z&st=2026-02-02T10:41:20Z&spr=https&sig=..."
 # ==================================
 
 # Local working paths
